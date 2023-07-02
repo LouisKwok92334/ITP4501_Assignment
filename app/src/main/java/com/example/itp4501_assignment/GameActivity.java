@@ -1,11 +1,19 @@
 package com.example.itp4501_assignment;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 import android.animation.ObjectAnimator;
+import android.content.Context;
+import android.content.DialogInterface;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteException;
+import android.graphics.Color;
+import android.media.MediaPlayer;
 import android.os.CountDownTimer;
+import android.os.Vibrator;
+import android.view.Gravity;
+import android.view.LayoutInflater;
 import android.view.animation.AccelerateDecelerateInterpolator;
 
 import android.os.Bundle;
@@ -13,6 +21,8 @@ import android.os.Handler;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageButton;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -33,13 +43,19 @@ public class GameActivity extends AppCompatActivity {
     private ImageButton lastClickedButton = null;
     private int lastClickedIndex = -1;
     private boolean isWaiting = false;
-    private Button btnContinue;
+    private Button btnContinue, btnQuit;
     SQLiteDatabase db;
+    private MediaPlayer finishMediaPlayer;
+    private MediaPlayer gameMediaPlayer;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_game);
+
+        gameMediaPlayer = MediaPlayer.create(this, R.raw.game);
+        gameMediaPlayer.setLooping(true); // 如果需要循环播放 game.mp3
+        gameMediaPlayer.start();
 
         // Initialize the database
         initializeDatabase();
@@ -50,6 +66,14 @@ public class GameActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 initializeGame();
+            }
+        });
+
+        btnQuit = findViewById(R.id.btnQuit);
+        btnQuit.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                showExitDialog();
             }
         });
 
@@ -123,7 +147,7 @@ public class GameActivity extends AppCompatActivity {
 
     public void checkMatch(int clickedIndex, ImageButton clickedButton) {
         if (imageResources[clickedIndex] != imageResources[lastClickedIndex]) {
-            // if not match, delay 1 seconds and turn back the images
+            // delay 1 second and turn back the images
             final ImageButton button1 = clickedButton;
             final ImageButton button2 = lastClickedButton;
             Handler handler = new Handler();
@@ -134,9 +158,22 @@ public class GameActivity extends AppCompatActivity {
                 flipAnimation(button2, 180f, 0f, R.drawable.card);
                 button1.setTag(false);
                 button2.setTag(false);
+
+                // if not match, vibrate the device after the second card is flipped
+                Vibrator vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+                long[] vibrationPattern = {0, 100, 50, 100};  // delay, vibrate, pause, vibrate
+                vibrator.vibrate(vibrationPattern, -1);  // pass -1 to vibrate the pattern once
+
+                // if not match, play the wrong sound
+                MediaPlayer wrongSound = MediaPlayer.create(this, R.raw.wrong);
+                wrongSound.start();
             }, 1000);
         } else {
-            // if match, delay 1 seconds and make the images disappear
+            // if match, play the correct sound
+            MediaPlayer correctSound = MediaPlayer.create(this, R.raw.correct);
+            correctSound.start();
+
+            // delay 1 second and make the images disappear
             final ImageButton button1 = clickedButton;
             final ImageButton button2 = lastClickedButton;
             Handler handler = new Handler();
@@ -207,15 +244,40 @@ public class GameActivity extends AppCompatActivity {
         }.start();
     }
 
-
     private void endGame() {
         elapsedTime = System.currentTimeMillis() - startTime;
         timer.cancel();
+
+        // Stop and release the gameMediaPlayer
+        if (gameMediaPlayer != null) {
+            gameMediaPlayer.stop();
+            gameMediaPlayer.release();
+            gameMediaPlayer = null;
+        }
 
         // Show the button when the game ends
         btnContinue.setVisibility(View.VISIBLE);
         // Insert the record of the game just played
         insertGameRecord();
+        playWinSound();
+    }
+
+    private void playWinSound() {
+        MediaPlayer winMediaPlayer = MediaPlayer.create(this, R.raw.win);
+        winMediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+            @Override
+            public void onCompletion(MediaPlayer mp) {
+                mp.release();
+                playFinishSound();
+            }
+        });
+        winMediaPlayer.start();
+    }
+
+    private void playFinishSound() {
+        finishMediaPlayer = MediaPlayer.create(this, R.raw.finish);
+        finishMediaPlayer.setLooping(true);
+        finishMediaPlayer.start();
     }
 
     private void initializeDatabase() {
@@ -245,8 +307,100 @@ public class GameActivity extends AppCompatActivity {
     }
 
     @Override
+    public void onBackPressed() {
+        showExitDialog();
+    }
+
+    private void showExitDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        LayoutInflater inflater = this.getLayoutInflater();
+        View dialogView = inflater.inflate(R.layout.dialog_exit, null);
+        ImageView imageView = dialogView.findViewById(R.id.imageView);
+        imageView.setImageResource(R.drawable.cry);
+
+        TextView textView = new TextView(this);
+        textView.setText("Do you really want to leave game?");
+        textView.setTextColor(Color.BLACK);
+        textView.setTextSize(18);
+        textView.setGravity(Gravity.CENTER_HORIZONTAL);
+        textView.setPadding(0, 0, 0, 20);
+
+        LinearLayout linearLayout = dialogView.findViewById(R.id.dialogLayout);
+        linearLayout.addView(textView, 0);
+
+        builder.setView(dialogView)
+                .setPositiveButton("Exit！", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        finish();
+                    }
+                })
+                .setNegativeButton("Continue...", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.dismiss();
+                    }
+                });
+
+        AlertDialog alertDialog = builder.create();
+        alertDialog.getWindow().setBackgroundDrawableResource(R.drawable.web_popup_02);
+        alertDialog.show();
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        if (gameMediaPlayer != null && !gameMediaPlayer.isPlaying()) {
+            gameMediaPlayer.start();
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (gameMediaPlayer != null && gameMediaPlayer.isPlaying()) {
+            gameMediaPlayer.pause();
+        }
+        if (finishMediaPlayer != null && finishMediaPlayer.isPlaying()) {
+            finishMediaPlayer.pause();
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (gameMediaPlayer != null && !gameMediaPlayer.isPlaying()) {
+            gameMediaPlayer.start();
+        }
+        if (finishMediaPlayer != null && !finishMediaPlayer.isPlaying()) {
+            finishMediaPlayer.start();
+        }
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        if (gameMediaPlayer != null && gameMediaPlayer.isPlaying()) {
+            gameMediaPlayer.pause();
+        }
+        if (finishMediaPlayer != null && finishMediaPlayer.isPlaying()) {
+            finishMediaPlayer.pause();
+        }
+    }
+
+    @Override
     protected void onDestroy() {
         super.onDestroy();
+
+        if (finishMediaPlayer != null) {
+            finishMediaPlayer.release();
+            finishMediaPlayer = null;
+        }
+
+        if (gameMediaPlayer != null) {
+            gameMediaPlayer.release();
+            gameMediaPlayer = null;
+        }
 
         if (timer != null) {
             timer.cancel();
