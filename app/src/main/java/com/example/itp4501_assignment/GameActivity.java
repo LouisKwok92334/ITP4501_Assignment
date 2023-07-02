@@ -215,6 +215,7 @@ public class GameActivity extends AppCompatActivity {
         imageResources[7] = R.drawable.megumin4;
 
         btnContinue.setVisibility(View.GONE);
+        btnQuit.setVisibility(View.GONE);
     }
 
     // Implementing Fisher–Yates shuffle
@@ -257,6 +258,7 @@ public class GameActivity extends AppCompatActivity {
 
         // Show the button when the game ends
         btnContinue.setVisibility(View.VISIBLE);
+        btnQuit.setVisibility(View.VISIBLE);
         // Insert the record of the game just played
         insertGameRecord();
         playWinSound();
