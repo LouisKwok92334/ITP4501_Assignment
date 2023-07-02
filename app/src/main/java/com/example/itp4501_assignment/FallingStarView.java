@@ -14,6 +14,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+//以下的都是gpt教學，大約問題會是
+//1. 我要如何在android studio弄一個不斷出現星星的背景動畫？
+//2. 根據你提供給我的代碼，我要怎樣調整為不同的顏色、數量、以及大小等等？
+//3. 幫我弄得再好看點 or 我想把數量減少
+
 public class FallingStarView extends View {
     // 自定義的類型，用於表示每顆星星的位置和速度等屬性
     private static class Star {

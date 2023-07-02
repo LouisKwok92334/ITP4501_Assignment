@@ -13,6 +13,11 @@ import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.View;
 
+//以下的code也是gpt教學，大約問題會是
+//1. 我要如何在android studio弄一個，當我點擊某一處的時候，可以有類似水波紋的圖案及震動，顯示給用戶知道剛才點擊了哪個位置？
+//2. 根據你提供給我的代碼，我希望你可以幫我再設較一下大小，以及顏色我想要白色，同時間我希望加入click.mp3進入裡面
+//3. 我要如何在xxx.xml內放入剛才你提供的代碼？
+
 public class RippleView extends View {
 
     private Paint mPaint;
